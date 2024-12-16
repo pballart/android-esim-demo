@@ -120,7 +120,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             ESIMDemoAndroidTheme {
                 MainView {
-                    downloadTestProfile()
+                    //downloadTestProfile()
+                    openInstallFlow()
                 }
             }
         }
@@ -180,6 +181,17 @@ class MainActivity : ComponentActivity() {
                 showToastMessage("eSIM is not supported on this device")
             }
         } ?: showToastMessage("eSIM is not supported on this device")
+    }
+
+    private fun openInstallFlow() {
+        try {
+            val intent = Intent(ACTION_START_EUICC_ACTIVATION)
+            intent.putExtra(EXTRA_USE_QR_SCANNER, false)
+            startActivity(intent)
+        } catch (e: Exception) {
+            e.printStackTrace();
+            Toast.makeText(this,e.message,Toast.LENGTH_SHORT).show();
+        }
     }
 
     private fun showToastMessage(message: String) {
