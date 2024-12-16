@@ -25,11 +25,76 @@ private const val TEST_SIM_PROFILE = "REPLACE_ME"
 
 private const val DOWNLOAD_ACTION = "download_subscription"
 private const val START_RESOLUTION_ACTION = "start_resolution_action"
-private const val BROADCAST_PERMISSION = "com.your.company.lpa.permission.BROADCAST"
+private const val BROADCAST_PERMISSION = "com.example.esimdemoandroid.lpa.permission.BROADCAST"
+
 
 class MainActivity : ComponentActivity() {
-
     private var manager: EuiccManager? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            ESIMDemoAndroidTheme {
+                MainView {
+                    downloadTestProfile()
+                }
+            }
+        }
+        manager = getSystemService(EUICC_SERVICE) as EuiccManager
+    }
+
+    /**
+     * Register the broadcast receivers
+     */
+    override fun onStart() {
+        super.onStart()
+        registerReceiver(
+            eSimBroadcastReceiver,
+            IntentFilter(DOWNLOAD_ACTION),
+            BROADCAST_PERMISSION,
+            null,
+            RECEIVER_NOT_EXPORTED
+        )
+        registerReceiver(
+            resolutionReceiver,
+            IntentFilter(START_RESOLUTION_ACTION),
+            BROADCAST_PERMISSION,
+            null,
+            RECEIVER_NOT_EXPORTED
+        )
+    }
+
+    /**
+     * Un-Register the broadcast receivers
+     */
+    override fun onStop() {
+        super.onStop()
+        unregisterReceiver(eSimBroadcastReceiver)
+        unregisterReceiver(resolutionReceiver)
+    }
+
+    private fun downloadTestProfile() {
+        // Check if e-sim is supported by the device note that emulators are not supported.
+        manager?.let {
+            if (it.isEnabled) {
+                val subscription = DownloadableSubscription.forActivationCode(TEST_SIM_PROFILE)
+                val callbackIntent = PendingIntent.getBroadcast(
+                    baseContext,
+                    0,
+                    Intent(DOWNLOAD_ACTION),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_NO_CREATE
+                )
+                it.downloadSubscription(subscription, true, callbackIntent)
+            } else {
+                showToastMessage("eSIM is not supported on this device")
+            }
+        } ?: showToastMessage("eSIM manager is null")
+    }
+
+    private fun showToastMessage(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
 
     private val eSimBroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -112,89 +177,5 @@ class MainActivity : ComponentActivity() {
                 else -> showToastMessage("Failed to install eSIM ")
             }
         }
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            ESIMDemoAndroidTheme {
-                MainView {
-                    //downloadTestProfile()
-                    openInstallFlow()
-                }
-            }
-        }
-        manager = getSystemService(EUICC_SERVICE) as EuiccManager
-    }
-
-
-    /**
-     * Register the broadcast receivers
-     */
-    override fun onStart() {
-        super.onStart()
-        registerReceiver(
-            eSimBroadcastReceiver,
-            IntentFilter(DOWNLOAD_ACTION),
-            BROADCAST_PERMISSION,
-            null,
-            RECEIVER_NOT_EXPORTED
-        )
-        registerReceiver(
-            resolutionReceiver,
-            IntentFilter(START_RESOLUTION_ACTION),
-            BROADCAST_PERMISSION,
-            null,
-            RECEIVER_NOT_EXPORTED
-        )
-    }
-
-    /**
-     * Un-Register the broadcast receivers
-     */
-    override fun onStop() {
-        super.onStop()
-        unregisterReceiver(eSimBroadcastReceiver)
-        unregisterReceiver(resolutionReceiver)
-    }
-
-    private fun downloadTestProfile() {
-        // Check if e-sim is supported by the device note that emulators are not supported.
-        manager?.let {
-            if (it.isEnabled) {
-                val info = it.euiccInfo
-                val osVer = info?.osVersion
-
-                Log.d("esim", "osVer $osVer" )
-
-                val subscription =
-                    DownloadableSubscription.forActivationCode(TEST_SIM_PROFILE)
-                val callbackIntent = PendingIntent.getBroadcast(
-                    baseContext,
-                    0 /* requestCode */,
-                    Intent(DOWNLOAD_ACTION),
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_NO_CREATE
-                )
-                it.downloadSubscription(subscription, true, callbackIntent)
-            } else {
-                showToastMessage("eSIM is not supported on this device")
-            }
-        } ?: showToastMessage("eSIM is not supported on this device")
-    }
-
-    private fun openInstallFlow() {
-        try {
-            val intent = Intent(ACTION_START_EUICC_ACTIVATION)
-            intent.putExtra(EXTRA_USE_QR_SCANNER, false)
-            startActivity(intent)
-        } catch (e: Exception) {
-            e.printStackTrace();
-            Toast.makeText(this,e.message,Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private fun showToastMessage(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 }
